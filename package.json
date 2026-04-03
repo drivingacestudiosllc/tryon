@@ -1,0 +1,14 @@
+{
+  "name": "shoe-tryon-backend",
+  "version": "1.0.0",
+  "description": "Backend proxy for AI shoe try-on — calls fal.ai on behalf of the frontend",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch api/tryon.js",
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {}
+}
