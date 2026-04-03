@@ -1,14 +1,8 @@
 {
   "version": 2,
   "functions": {
-    "api/tryon.js": {
+    "api/*.js": {
       "maxDuration": 60
     }
-  },
-  "routes": [
-    {
-      "src": "/api/tryon",
-      "dest": "/api/tryon.js"
-    }
-  ]
+  }
 }

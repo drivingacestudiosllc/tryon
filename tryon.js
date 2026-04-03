@@ -6,11 +6,11 @@
 //    FAL_KEY   →  your fal.ai API key (from fal.ai/dashboard)
 // ═══════════════════════════════════════════════════════════
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // ── CORS headers (allow your Squarespace domain + localhost) ──
   const allowedOrigins = [
-    'https://www.littlestarshipacademy.store',  // ← replace with your domain
-    'https://littlestarshipacademy.store',       // ← replace with your domain
+    'https://www.yoursquarespacesite.com',  // ← replace with your domain
+    'https://yoursquarespacesite.com',       // ← replace with your domain
     'http://localhost:3000',
     'http://127.0.0.1:5500',
   ];
