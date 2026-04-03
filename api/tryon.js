@@ -45,66 +45,70 @@ module.exports = async function handler(req, res) {
   if (!user_image_b64) return res.status(400).json({ error: 'Missing user_image_b64' });
   if (!shoe_image_src) return res.status(400).json({ error: 'Missing shoe_image_src' });
 
-  try {
-    // ── Upload user image to fal.ai storage ──
-    console.log('Uploading user image to fal.ai storage…');
-
-    // Convert base64 data URI to a Blob-compatible buffer
-    const base64Data = user_image_b64.split(',')[1];
-    const mimeMatch = user_image_b64.match(/data:([^;]+);/);
-    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-    const imageBuffer = Buffer.from(base64Data, 'base64');
-
-    // Upload to fal storage
-    const uploadResponse = await fetch('https://fal.run/fal-ai/storage/upload', {
+  // ── Helper: upload a buffer to fal.ai storage via initiate/complete flow ──
+  async function uploadToFal(buffer, mimeType, filename) {
+    // Step 1: Initiate upload — get a presigned URL
+    const initiateRes = await fetch('https://rest.fal.ai/storage/upload/initiate', {
       method: 'POST',
       headers: {
         'Authorization': `Key ${FAL_KEY}`,
-        'Content-Type': mimeType,
+        'Content-Type': 'application/json',
       },
-      body: imageBuffer,
+      body: JSON.stringify({
+        file_name: filename,
+        content_type: mimeType,
+      }),
     });
 
-    if (!uploadResponse.ok) {
-      const uploadErr = await uploadResponse.text();
-      throw new Error(`fal.ai upload failed: ${uploadErr}`);
+    if (!initiateRes.ok) {
+      const err = await initiateRes.text();
+      throw new Error(`fal.ai upload initiate failed: ${err}`);
     }
 
-    const { url: userImageUrl } = await uploadResponse.json();
+    const { upload_url, file_url } = await initiateRes.json();
+
+    // Step 2: PUT the file to the presigned URL
+    const putRes = await fetch(upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': mimeType },
+      body: buffer,
+    });
+
+    if (!putRes.ok) {
+      const err = await putRes.text();
+      throw new Error(`fal.ai presigned PUT failed: ${err}`);
+    }
+
+    return file_url;
+  }
+
+  try {
+    // ── Upload user image ──
+    console.log('Uploading user image to fal.ai storage…');
+    const base64Data = user_image_b64.split(',')[1];
+    const mimeMatch = user_image_b64.match(/data:([^;]+);/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const ext = mimeType.split('/')[1] || 'jpg';
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+
+    const userImageUrl = await uploadToFal(imageBuffer, mimeType, `user-photo.${ext}`);
     console.log('User image uploaded:', userImageUrl);
 
     // ── Handle shoe image ──
-    // If it's a data URI (our SVG placeholders), upload it too.
-    // If it's already an https:// URL, use it directly.
     let shoeImageUrl = shoe_image_src;
 
     if (shoe_image_src.startsWith('data:')) {
       const shoeBase64 = shoe_image_src.split(',')[1];
       const shoeMimeMatch = shoe_image_src.match(/data:([^;]+);/);
       const shoeMime = shoeMimeMatch ? shoeMimeMatch[1] : 'image/png';
+      const shoeExt = shoeMime.split('/')[1] || 'png';
       const shoeBuffer = Buffer.from(shoeBase64, 'base64');
 
-      const shoeUpload = await fetch('https://fal.run/fal-ai/storage/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Key ${FAL_KEY}`,
-          'Content-Type': shoeMime,
-        },
-        body: shoeBuffer,
-      });
-
-      if (!shoeUpload.ok) {
-        const shoeErr = await shoeUpload.text();
-        throw new Error(`fal.ai shoe upload failed: ${shoeErr}`);
-      }
-      const shoeData = await shoeUpload.json();
-      shoeImageUrl = shoeData.url;
+      shoeImageUrl = await uploadToFal(shoeBuffer, shoeMime, `shoe.${shoeExt}`);
       console.log('Shoe image uploaded:', shoeImageUrl);
     }
 
     // ── Call fal.ai IDM-VTON (virtual try-on) ──
-    // IDM-VTON supports clothing/shoe try-on.
-    // Prompt guides the model to focus on shoe replacement.
     const prompt = `A person wearing ${shoe_name} ${shoe_brand} shoes, photorealistic, high quality, natural lighting, same pose and background as original photo`;
 
     console.log('Calling fal.ai IDM-VTON…');
@@ -125,9 +129,9 @@ module.exports = async function handler(req, res) {
 
     if (!falResponse.ok) {
       const falErr = await falResponse.text();
-      console.error('fal.ai error:', falErr);
+      console.error('fal.ai IDM-VTON error:', falErr);
 
-      // Fallback: try flux-pro inpainting if VTON fails
+      // Fallback: try flux-pro inpainting
       console.log('IDM-VTON failed, trying flux inpainting fallback…');
       return await fluxInpaintFallback(res, FAL_KEY, userImageUrl, shoe_name, shoe_brand, prompt);
     }
@@ -135,7 +139,6 @@ module.exports = async function handler(req, res) {
     const falData = await falResponse.json();
     console.log('fal.ai response keys:', Object.keys(falData));
 
-    // fal.ai returns image as URL in images[0].url or image.url
     const resultImageUrl =
       falData?.images?.[0]?.url ||
       falData?.image?.url ||
@@ -158,7 +161,6 @@ module.exports = async function handler(req, res) {
 
 // ─────────────────────────────────────────────────────────────
 //  FALLBACK: flux-pro inpainting
-//  Used if IDM-VTON is unavailable or returns an error.
 // ─────────────────────────────────────────────────────────────
 async function fluxInpaintFallback(res, FAL_KEY, userImageUrl, shoe_name, shoe_brand, prompt) {
   try {
@@ -171,7 +173,6 @@ async function fluxInpaintFallback(res, FAL_KEY, userImageUrl, shoe_name, shoe_b
       body: JSON.stringify({
         image_url: userImageUrl,
         prompt: prompt,
-        // Without an explicit mask, flux-fill will edit the most relevant region
         num_inference_steps: 28,
         guidance_scale: 3.5,
       }),
