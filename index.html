@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sole Studio — Virtual Try-On</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #0e0c0a;
+    --cream: #f5f0e8;
+    --sand: #e8dfd0;
+    --accent: #c8a96e;
+    --accent-dark: #a0824a;
+    --muted: #9a9080;
+    --white: #ffffff;
+    --radius: 16px;
+    --shadow: 0 8px 40px rgba(14,12,10,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* Squarespace embed: the body bg will be transparent, widget is self-contained */
+
+  .app-shell {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .header-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+
+  .header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 900;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+
+  .header p {
+    margin-top: 14px;
+    font-size: 15px;
+    color: var(--muted);
+    font-weight: 300;
+    max-width: 480px;
+    margin-inline: auto;
+    line-height: 1.7;
+  }
+
+  /* ── Steps ── */
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 48px;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  .step {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 20px 16px;
+    text-align: center;
+    border: 1.5px solid var(--sand);
+  }
+
+  .step-num {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    color: var(--white);
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+
+  .step p {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ── Upload Zone ── */
+  .section {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 32px;
+    margin-bottom: 24px;
+    border: 1.5px solid var(--sand);
+    box-shadow: var(--shadow);
+    animation: fadeUp 0.6s 0.15s ease both;
+  }
+
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+
+  .upload-zone {
+    border: 2px dashed var(--sand);
+    border-radius: 12px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: #fdf9f3;
+  }
+
+  .upload-zone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .upload-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .upload-zone h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    margin-bottom: 6px;
+  }
+
+  .upload-zone p {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .upload-preview {
+    display: none;
+    position: relative;
+  }
+
+  .upload-preview img {
+    width: 100%;
+    max-height: 380px;
+    object-fit: contain;
+    border-radius: 10px;
+    display: block;
+  }
+
+  .upload-preview .change-btn {
+    position: absolute;
+    top: 12px; right: 12px;
+    background: rgba(14,12,10,0.7);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    backdrop-filter: blur(4px);
+  }
+
+  /* ── Shoe Picker ── */
+  .shoe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 14px;
+  }
+
+  .shoe-card {
+    border: 2px solid var(--sand);
+    border-radius: 12px;
+    padding: 14px 10px 10px;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    text-align: center;
+    background: var(--cream);
+    position: relative;
+  }
+
+  .shoe-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 6px 20px rgba(200,169,110,0.2);
+  }
+
+  .shoe-card.selected {
+    border-color: var(--accent);
+    background: #fdf9f3;
+    box-shadow: 0 0 0 3px rgba(200,169,110,0.25);
+  }
+
+  .shoe-card.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 20px; height: 20px;
+    background: var(--accent);
+    color: white;
+    border-radius: 50%;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .shoe-card img {
+    width: 100%;
+    height: 80px;
+    object-fit: contain;
+    margin-bottom: 8px;
+    border-radius: 6px;
+  }
+
+  .shoe-card .shoe-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink);
+    display: block;
+  }
+
+  .shoe-card .shoe-brand {
+    font-size: 10px;
+    color: var(--muted);
+    display: block;
+    margin-top: 2px;
+  }
+
+  /* Add your own shoe images notice */
+  .shoe-note {
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--muted);
+    background: #fdf9f3;
+    border-radius: 8px;
+    padding: 10px 14px;
+    border-left: 3px solid var(--accent);
+    line-height: 1.6;
+  }
+
+  /* ── Generate Button ── */
+  .generate-wrap {
+    text-align: center;
+    margin: 32px 0;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  .btn-generate {
+    background: var(--ink);
+    color: var(--white);
+    border: none;
+    border-radius: 50px;
+    padding: 18px 52px;
+    font-family: 'Playfair Display', serif;
+    font-size: 17px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    box-shadow: 0 4px 20px rgba(14,12,10,0.2);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .btn-generate:hover:not(:disabled) {
+    background: var(--accent-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(14,12,10,0.25);
+  }
+
+  .btn-generate:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-generate .btn-icon { font-size: 20px; }
+
+  /* ── Status / Loading ── */
+  .status-bar {
+    display: none;
+    text-align: center;
+    padding: 24px;
+    animation: fadeUp 0.3s ease;
+  }
+
+  .spinner {
+    width: 44px; height: 44px;
+    border: 3px solid var(--sand);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    margin: 0 auto 16px;
+  }
+
+  .status-bar p {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  .status-bar strong {
+    display: block;
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+
+  /* ── Result ── */
+  .result-section {
+    display: none;
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 32px;
+    border: 1.5px solid var(--sand);
+    box-shadow: var(--shadow);
+    text-align: center;
+    animation: fadeUp 0.5s ease;
+  }
+
+  .result-section h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 24px;
+    margin-bottom: 6px;
+  }
+
+  .result-section .result-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 24px;
+  }
+
+  .result-img {
+    width: 100%;
+    max-height: 500px;
+    object-fit: contain;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    box-shadow: 0 12px 48px rgba(14,12,10,0.12);
+  }
+
+  .result-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn-download {
+    background: var(--accent);
+    color: var(--white);
+    border: none;
+    border-radius: 50px;
+    padding: 14px 36px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  .btn-download:hover { background: var(--accent-dark); }
+
+  .btn-again {
+    background: transparent;
+    color: var(--ink);
+    border: 1.5px solid var(--sand);
+    border-radius: 50px;
+    padding: 14px 36px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .btn-again:hover { border-color: var(--accent); }
+
+  /* ── Error ── */
+  .error-box {
+    display: none;
+    background: #fef2f2;
+    border: 1.5px solid #fca5a5;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-top: 16px;
+    font-size: 13px;
+    color: #b91c1c;
+    line-height: 1.6;
+  }
+
+  /* ── Config notice ── */
+  .config-banner {
+    background: #fffbeb;
+    border: 1.5px solid #f59e0b;
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 28px;
+    font-size: 13px;
+    color: #92400e;
+    line-height: 1.6;
+    display: none;
+  }
+
+  .config-banner strong { display: block; margin-bottom: 4px; font-size: 14px; }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @media (max-width: 600px) {
+    .steps { grid-template-columns: 1fr; }
+    .app-shell { padding: 32px 16px 60px; }
+    .section { padding: 24px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <header class="header">
+    <div class="header-eyebrow">AI-Powered Virtual Try-On</div>
+    <h1>See Your New Shoes<br>Before You Buy</h1>
+    <p>Upload a photo showing your feet, pick a pair you love, and watch the magic happen.</p>
+  </header>
+
+  <!-- Config warning shown if backend URL not set -->
+  <div class="config-banner" id="configBanner">
+    <strong>⚙️ Setup Required</strong>
+    Open this file and set <code>BACKEND_URL</code> at the top of the script to your deployed Vercel/Render backend URL.
+  </div>
+
+  <div class="steps">
+    <div class="step"><div class="step-num">1</div><p>Upload a photo showing your feet or shoes</p></div>
+    <div class="step"><div class="step-num">2</div><p>Choose a shoe style from the collection</p></div>
+    <div class="step"><div class="step-num">3</div><p>AI generates your try-on result instantly</p></div>
+  </div>
+
+  <!-- Step 1: Upload -->
+  <div class="section" id="uploadSection">
+    <div class="section-label">Step 1 — Your Photo</div>
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="photoInput" accept="image/*" />
+      <span class="upload-icon">📸</span>
+      <h3>Drop your photo here</h3>
+      <p>or click to browse · JPG, PNG, WEBP · max 10MB</p>
+    </div>
+    <div class="upload-preview" id="uploadPreview">
+      <img id="previewImg" src="" alt="Your photo" />
+      <button class="change-btn" id="changePhotoBtn">Change Photo</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Shoe picker -->
+  <div class="section" id="shoeSection">
+    <div class="section-label">Step 2 — Choose Your Shoes</div>
+    <div class="shoe-grid" id="shoeGrid">
+      <!-- Shoe cards injected by JS -->
+    </div>
+    <div class="shoe-note">
+      💡 <strong>Want to use your own shoe images?</strong> Open <code>index.html</code> and edit the <code>SHOES</code> array near the top of the script — just swap in your own image URLs, names, and brands.
+    </div>
+  </div>
+
+  <!-- Generate -->
+  <div class="generate-wrap">
+    <button class="btn-generate" id="generateBtn" disabled>
+      <span class="btn-icon">✨</span> Generate My Try-On
+    </button>
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <!-- Loading -->
+  <div class="status-bar" id="statusBar">
+    <div class="spinner"></div>
+    <strong>Styling your feet…</strong>
+    <p>Our AI is working its magic. This takes about 15–30 seconds.</p>
+  </div>
+
+  <!-- Result -->
+  <div class="result-section" id="resultSection">
+    <h2>Here's Your Look ✨</h2>
+    <p class="result-sub">AI-generated try-on — tap download to save</p>
+    <img class="result-img" id="resultImg" src="" alt="Try-on result" />
+    <div class="result-actions">
+      <a class="btn-download" id="downloadBtn" href="#" download="my-tryon.png">⬇ Download Photo</a>
+      <button class="btn-again" id="tryAgainBtn">Try Another Pair</button>
+    </div>
+  </div>
+
+</div><!-- /app-shell -->
+
+<script>
+// ─────────────────────────────────────────────────────────────
+//  CONFIGURATION  ← edit these two values after deploying
+// ─────────────────────────────────────────────────────────────
+const BACKEND_URL = 'https://YOUR_BACKEND_URL_HERE/api/tryon';
+// e.g. 'https://my-shoe-tryon.vercel.app/api/tryon'
+
+// ─────────────────────────────────────────────────────────────
+//  SHOE CATALOG  ← replace with your own shoe images / names
+//  Use hosted image URLs (https://...) or base64 data URIs.
+// ─────────────────────────────────────────────────────────────
+const SHOES = [
+  {
+    id: 'shoe1',
+    name: 'Classic White',
+    brand: 'Low-Top Sneaker',
+    // Using a simple SVG placeholder — replace src with a real shoe image URL
+    src: 'data:image/svg+xml,' + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80">
+        <rect width="120" height="80" fill="#f0ede8"/>
+        <ellipse cx="60" cy="55" rx="48" ry="18" fill="#fff" stroke="#ddd" stroke-width="1.5"/>
+        <path d="M20 48 Q40 28 75 30 Q95 32 98 45" fill="#fff" stroke="#ddd" stroke-width="1.5"/>
+        <text x="60" y="20" text-anchor="middle" font-size="9" fill="#999" font-family="sans-serif">White Sneaker</text>
+      </svg>`)
+  },
+  {
+    id: 'shoe2',
+    name: 'Midnight Runner',
+    brand: 'Running Shoe',
+    src: 'data:image/svg+xml,' + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80">
+        <rect width="120" height="80" fill="#f0ede8"/>
+        <ellipse cx="60" cy="55" rx="48" ry="18" fill="#1a1a2e" stroke="#333" stroke-width="1.5"/>
+        <path d="M20 48 Q40 25 78 28 Q98 30 100 45" fill="#1a1a2e" stroke="#333" stroke-width="1.5"/>
+        <path d="M50 35 L70 32" stroke="#e94560" stroke-width="2.5" stroke-linecap="round"/>
+        <text x="60" y="20" text-anchor="middle" font-size="9" fill="#999" font-family="sans-serif">Dark Runner</text>
+      </svg>`)
+  },
+  {
+    id: 'shoe3',
+    name: 'Desert Boot',
+    brand: 'Ankle Boot',
+    src: 'data:image/svg+xml,' + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80">
+        <rect width="120" height="80" fill="#f0ede8"/>
+        <ellipse cx="60" cy="58" rx="45" ry="14" fill="#c8a96e" stroke="#a0824a" stroke-width="1.5"/>
+        <rect x="30" y="30" width="55" height="30" rx="6" fill="#c8a96e" stroke="#a0824a" stroke-width="1.5"/>
+        <line x1="45" y1="30" x2="45" y2="20" stroke="#a0824a" stroke-width="1.5"/>
+        <text x="60" y="16" text-anchor="middle" font-size="9" fill="#999" font-family="sans-serif">Desert Boot</text>
+      </svg>`)
+  },
+  {
+    id: 'shoe4',
+    name: 'Platform Loafer',
+    brand: 'Dress Shoe',
+    src: 'data:image/svg+xml,' + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80">
+        <rect width="120" height="80" fill="#f0ede8"/>
+        <ellipse cx="60" cy="60" rx="46" ry="12" fill="#2d2d2d" stroke="#111" stroke-width="1.5"/>
+        <rect x="20" y="62" width="80" height="8" rx="3" fill="#111"/>
+        <path d="M22 52 Q42 32 80 34 Q98 36 98 52" fill="#2d2d2d" stroke="#111" stroke-width="1.5"/>
+        <text x="60" y="20" text-anchor="middle" font-size="9" fill="#999" font-family="sans-serif">Platform Loafer</text>
+      </svg>`)
+  },
+  {
+    id: 'shoe5',
+    name: 'Coral Slide',
+    brand: 'Sandal',
+    src: 'data:image/svg+xml,' + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80">
+        <rect width="120" height="80" fill="#f0ede8"/>
+        <ellipse cx="60" cy="62" rx="48" ry="10" fill="#ff7f7f" stroke="#e06060" stroke-width="1.5"/>
+        <rect x="25" y="62" width="70" height="6" rx="3" fill="#e06060"/>
+        <path d="M30 58 Q60 44 90 58" fill="none" stroke="#ff7f7f" stroke-width="8" stroke-linecap="round"/>
+        <text x="60" y="20" text-anchor="middle" font-size="9" fill="#999" font-family="sans-serif">Coral Slide</text>
+      </svg>`)
+  },
+  {
+    id: 'shoe6',
+    name: 'High-Top Canvas',
+    brand: 'Streetwear',
+    src: 'data:image/svg+xml,' + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80">
+        <rect width="120" height="80" fill="#f0ede8"/>
+        <ellipse cx="58" cy="62" rx="44" ry="12" fill="#e8e0d0" stroke="#ccc" stroke-width="1.5"/>
+        <rect x="28" y="22" width="46" height="42" rx="8" fill="#e8e0d0" stroke="#ccc" stroke-width="1.5"/>
+        <line x1="38" y1="34" x2="64" y2="34" stroke="#bbb" stroke-width="1"/>
+        <line x1="38" y1="40" x2="64" y2="40" stroke="#bbb" stroke-width="1"/>
+        <line x1="38" y1="46" x2="64" y2="46" stroke="#bbb" stroke-width="1"/>
+        <text x="60" y="14" text-anchor="middle" font-size="9" fill="#999" font-family="sans-serif">High-Top</text>
+      </svg>`)
+  },
+];
+
+// ─────────────────────────────────────────────────────────────
+//  APP STATE
+// ─────────────────────────────────────────────────────────────
+let userPhotoFile = null;
+let selectedShoeId = null;
+
+// ─────────────────────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────────────────────
+(function init() {
+  if (!BACKEND_URL || BACKEND_URL.includes('YOUR_BACKEND_URL_HERE')) {
+    document.getElementById('configBanner').style.display = 'block';
+  }
+  renderShoeGrid();
+  bindEvents();
+})();
+
+function renderShoeGrid() {
+  const grid = document.getElementById('shoeGrid');
+  grid.innerHTML = SHOES.map(shoe => `
+    <div class="shoe-card" data-id="${shoe.id}" onclick="selectShoe('${shoe.id}')">
+      <img src="${shoe.src}" alt="${shoe.name}" />
+      <span class="shoe-name">${shoe.name}</span>
+      <span class="shoe-brand">${shoe.brand}</span>
+    </div>
+  `).join('');
+}
+
+function bindEvents() {
+  const zone = document.getElementById('uploadZone');
+  const input = document.getElementById('photoInput');
+  const changeBtn = document.getElementById('changePhotoBtn');
+  const generateBtn = document.getElementById('generateBtn');
+  const tryAgainBtn = document.getElementById('tryAgainBtn');
+
+  input.addEventListener('change', e => handleFile(e.target.files[0]));
+  changeBtn.addEventListener('click', () => {
+    document.getElementById('uploadPreview').style.display = 'none';
+    zone.style.display = 'block';
+    userPhotoFile = null;
+    input.value = '';
+    updateGenerateBtn();
+  });
+
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  generateBtn.addEventListener('click', generate);
+  tryAgainBtn.addEventListener('click', resetToStart);
+}
+
+function handleFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  if (file.size > 10 * 1024 * 1024) {
+    showError('Photo too large — please use an image under 10MB.'); return;
+  }
+  userPhotoFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('previewImg').src = e.target.result;
+    document.getElementById('uploadZone').style.display = 'none';
+    document.getElementById('uploadPreview').style.display = 'block';
+    updateGenerateBtn();
+  };
+  reader.readAsDataURL(file);
+}
+
+function selectShoe(id) {
+  selectedShoeId = id;
+  document.querySelectorAll('.shoe-card').forEach(el => {
+    el.classList.toggle('selected', el.dataset.id === id);
+  });
+  updateGenerateBtn();
+}
+
+function updateGenerateBtn() {
+  document.getElementById('generateBtn').disabled = !(userPhotoFile && selectedShoeId);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  GENERATE
+// ─────────────────────────────────────────────────────────────
+async function generate() {
+  hideError();
+
+  if (!userPhotoFile || !selectedShoeId) return;
+
+  const shoe = SHOES.find(s => s.id === selectedShoeId);
+  if (!shoe) return;
+
+  // Convert user photo to base64
+  const userPhotoB64 = await fileToBase64(userPhotoFile);
+
+  showLoading(true);
+
+  try {
+    const response = await fetch(BACKEND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_image_b64: userPhotoB64,
+        shoe_image_src: shoe.src,       // URL or base64
+        shoe_name: shoe.name,
+        shoe_brand: shoe.brand,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `Server error ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.result_image) throw new Error('No result image returned from server.');
+
+    showResult(data.result_image);
+
+  } catch (err) {
+    showLoading(false);
+    showError('Something went wrong: ' + err.message);
+  }
+}
+
+function showResult(imageDataOrUrl) {
+  showLoading(false);
+  const img = document.getElementById('resultImg');
+  img.src = imageDataOrUrl;
+  document.getElementById('downloadBtn').href = imageDataOrUrl;
+  document.getElementById('resultSection').style.display = 'block';
+  document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function resetToStart() {
+  document.getElementById('resultSection').style.display = 'none';
+  document.querySelectorAll('.shoe-card').forEach(el => el.classList.remove('selected'));
+  selectedShoeId = null;
+  updateGenerateBtn();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showLoading(on) {
+  document.getElementById('statusBar').style.display = on ? 'block' : 'none';
+  document.getElementById('generateBtn').disabled = on;
+}
+
+function showError(msg) {
+  const box = document.getElementById('errorBox');
+  box.textContent = '⚠ ' + msg;
+  box.style.display = 'block';
+}
+
+function hideError() {
+  document.getElementById('errorBox').style.display = 'none';
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result); // full data URI
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+</script>
+</body>
+</html>
